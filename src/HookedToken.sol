@@ -16,24 +16,6 @@ contract HookedToken is ERC20 {
         nonfungiblePositionManager = INonfungiblePositionManager(_nfpm);
     }
 
-    function _mintPosition() internal {
-        // mint a position on nonfungiblePositionManager
-        INonfungiblePositionManager.MintParams memory mintParams = INonfungiblePositionManager.MintParams({
-            token0: address(0),
-            token1: address(0),
-            fee: 3000,
-            tickLower: -887220,
-            tickUpper: 887200,
-            amount0Desired: 0,
-            amount1Desired: 0,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp
-        });
-        nonfungiblePositionManager.mint(mintParams);
-    }
-
     function _increaseLiquidty(uint256 amount0, uint256 amount1) internal {
         INonfungiblePositionManager.IncreaseLiquidityParams memory increaseLiquidityParams = INonfungiblePositionManager.IncreaseLiquidityParams({
             tokenId: tokenId,
@@ -44,21 +26,6 @@ contract HookedToken is ERC20 {
             deadline: block.timestamp
         });
         nonfungiblePositionManager.increaseLiquidity(increaseLiquidityParams);
-    }
-
-    function _decreaseLiquidity(uint256 liquidity) internal {
-        INonfungiblePositionManager.DecreaseLiquidityParams memory decreaseLiquidityParams = INonfungiblePositionManager.DecreaseLiquidityParams({
-            tokenId: tokenId,
-            liquidity: 0,
-            amount0Min: 0,
-            amount1Min: 0,
-            deadline: block.timestamp
-        });
-        nonfungiblePositionManager.decreaseLiquidity(decreaseLiquidityParams);
-    }
-
-    function _burnPosition(uint256 tokenId) internal {
-        nonfungiblePositionManager.burn(tokenId);
     }
 
     function _update(address from, address to, uint256 value) internal override {
