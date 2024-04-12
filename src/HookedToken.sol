@@ -76,7 +76,8 @@ contract HookedToken is ERC20 {
             // but a positive impact on the floor price
             uint256 tax = value / 20;
             super._update(to, address(this), tax);
-            _increaseLiquidty(tax, tax);
+            // TODO: check zero for one and put the correct values
+            _increaseLiquidty(0,0);
         } 
 
     }
