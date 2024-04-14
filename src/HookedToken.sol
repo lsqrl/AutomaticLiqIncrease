@@ -3,29 +3,54 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import '@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
 import './interfaces/external/INonfungiblePositionManager.sol';
 
-contract HookedToken is ERC20 {
-    
-    INonfungiblePositionManager public immutable nonfungiblePositionManager;
+import {console} from 'forge-std/console.sol';
 
-    address public uniswapPool;
+contract HookedToken is ERC20, Ownable {
+
+    INonfungiblePositionManager public immutable nfpm;
+
+    mapping (address => address) public poolToken;
+    mapping (address => bool) public isAddressExcluded;
+    address public router;
     uint256 public tokenId;
 
-    constructor(address _nfpm) ERC20("HookedToken", "HT") {
-        nonfungiblePositionManager = INonfungiblePositionManager(_nfpm);
+    constructor(address _nfpm, address _router) ERC20("HookedToken", "HT") Ownable(msg.sender) {
+        _mint(msg.sender, 1000000 * 10 ** 18);
+        nfpm = INonfungiblePositionManager(_nfpm);
+        router = _router;
     }
 
-    function _increaseLiquidty(uint256 amount0, uint256 amount1) internal {
-        INonfungiblePositionManager.IncreaseLiquidityParams memory increaseLiquidityParams = INonfungiblePositionManager.IncreaseLiquidityParams({
-            tokenId: tokenId,
-            amount0Desired: amount0,
-            amount1Desired: amount1,
-            amount0Min: 0,
-            amount1Min: 0,
-            deadline: block.timestamp
-        });
-        nonfungiblePositionManager.increaseLiquidity(increaseLiquidityParams);
+    function setAddressExclusionPolicy(address addr, bool excluded) public onlyOwner {
+        isAddressExcluded[addr] = excluded;
+    }
+
+    function setPoolToken(address pool, address otherToken) public onlyOwner {
+        poolToken[pool] = otherToken;
+    }
+
+    function setTokenId(uint256 _tokenId) public onlyOwner {
+        tokenId = _tokenId;
+    }
+
+    function _increaseLiquidty(address otherToken, uint256 amount) internal {
+        // Tokens are put in alphabetical orders on the addresses by the UniV3 factory
+        // Therefore we need to understand whether our token is 0 or 1
+        uint256 amount0 = address(this) < otherToken ? amount : 0;
+        uint256 amount1 = address(this) > otherToken ? amount : 0;
+        // equality cannot occur since tokens in a pool are different (ref UniV3 factory)
+        INonfungiblePositionManager.IncreaseLiquidityParams memory increaseLiquidityParams = 
+            INonfungiblePositionManager.IncreaseLiquidityParams({
+                tokenId: tokenId,
+                amount0Desired: amount0,
+                amount1Desired: amount1,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            });
+        nfpm.increaseLiquidity(increaseLiquidityParams);
     }
 
     function _update(address from, address to, uint256 value) internal override {
@@ -34,18 +59,19 @@ contract HookedToken is ERC20 {
         // moreover, the transfer is to the recipient, but from the router
         // thus, we only insert the hook on token purchases, not sales
 
-        // we first make the transfer normally
-        super._update(from, to, value);
 
-        if(from == uniswapPool) {
+        address otherToken = poolToken[from];
+        if(otherToken != address(0) && !isAddressExcluded[to]) {
             // the user is buying tokens from Uniswap: 5% is used to increase liquidity
             // notice that this has a negative impact on the spot price
             // but a positive impact on the floor price
-            uint256 tax = value / 20;
-            super._update(to, address(this), tax);
-            // TODO: check zero for one and put the correct values
-            _increaseLiquidty(0,0);
-        } 
+            uint256 tax = (value / 20);
+            
+            _increaseLiquidty(otherToken, tax);
+            value -= tax;
+        }
+        
+        super._update(from, to, value);
 
     }
 }
