@@ -58,20 +58,6 @@ contract HookedToken is ERC20, Ownable {
         // and Uniswap has a callback check for the tokens it receives
         // moreover, the transfer is to the recipient, but from the router
         // thus, we only insert the hook on token purchases, not sales
-
-
-        address otherToken = poolToken[from];
-        if(otherToken != address(0) && !isAddressExcluded[to]) {
-            // the user is buying tokens from Uniswap: 5% is used to increase liquidity
-            // notice that this has a negative impact on the spot price
-            // but a positive impact on the floor price
-            uint256 tax = (value / 20);
-            
-            _increaseLiquidty(otherToken, tax);
-            value -= tax;
-        }
-        
         super._update(from, to, value);
-
     }
 }
