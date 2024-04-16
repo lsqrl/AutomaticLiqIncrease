@@ -60,7 +60,7 @@ contract HookedTokenTest is Test {
     function setUp() public {
         uint256 forkId = vm.createFork(vm.envString(rpcUrl), blockNumber);
         vm.selectFork(forkId);
-        hookedToken = new HookedToken(nonfungiblePositionManager, swapRouter02);
+        hookedToken = new HookedToken(nonfungiblePositionManager);
 
         // deploy uniswap v3 pool
         // to remember: tick spacing is the fee amount divided by 50
@@ -85,6 +85,7 @@ contract HookedTokenTest is Test {
         require(success, "getPool 1 failed");
         pool1 = abi.decode(data, (address));
         require(pool1 != address(0), "pool not found");
+        hookedToken.setPoolToken(pool1, otherToken);
 
         // get pool2
         (success, data) = uniV3Factory.call(
@@ -142,8 +143,8 @@ contract HookedTokenTest is Test {
                 token1: token1,
                 fee: 500,
                 tickLower: -30,
-                tickUpper: 887270,
-                amount0Desired: 4e5 * 1e18,
+                tickUpper: -20,
+                amount0Desired: 4e5 * 1e6,
                 amount1Desired: 0,
                 amount0Min: 0,
                 amount1Min: 0,
@@ -157,8 +158,8 @@ contract HookedTokenTest is Test {
                 abi.encodeWithSignature("mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))", mintParams));
         require(success, "mint 1 failed");
         // console log pool balance
-        // console.log("pool 1 balance", hookedToken.balanceOf(pool1));
-        // console.log("pool 1 usdt balance", IERC20(otherToken).balanceOf(pool1));
+        console.log("pool 1 balance", hookedToken.balanceOf(pool1));
+        console.log("pool 1 usdt balance", IERC20(otherToken).balanceOf(pool1));
 
         // add liquidity to pool2
         // beware: the tick must always be a multiple of the tick spacing
@@ -170,7 +171,7 @@ contract HookedTokenTest is Test {
         mintParams.fee = 3000;
         mintParams.tickUpper = 887220;
         // amount of liquidity does not affect the first swap, (starting from the second, it does)
-        mintParams.amount0Desired = uint256(4e5 * 1e18);
+        mintParams.amount0Desired = uint256(4e5 * 1e6);
         (success, data) = nonfungiblePositionManager.call(
                 abi.encodeWithSignature("mint((address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,address,uint256))", mintParams));
         require(success, "mint 2 failed");

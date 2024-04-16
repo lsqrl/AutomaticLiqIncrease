@@ -14,13 +14,11 @@ contract HookedToken is ERC20, Ownable {
 
     mapping (address => address) public poolToken;
     mapping (address => bool) public isAddressExcluded;
-    address public router;
     uint256 public tokenId;
 
-    constructor(address _nfpm, address _router) ERC20("HookedToken", "HT") Ownable(msg.sender) {
+    constructor(address _nfpm) ERC20("HookedToken", "HT") Ownable(msg.sender) {
         _mint(msg.sender, 1000000 * 10 ** 18);
         nfpm = INonfungiblePositionManager(_nfpm);
-        router = _router;
     }
 
     function setAddressExclusionPolicy(address addr, bool excluded) public onlyOwner {
@@ -59,5 +57,9 @@ contract HookedToken is ERC20, Ownable {
         // moreover, the transfer is to the recipient, but from the router
         // thus, we only insert the hook on token purchases, not sales
         super._update(from, to, value);
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
     }
 }
